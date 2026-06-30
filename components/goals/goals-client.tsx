@@ -9,7 +9,7 @@ import { projectGoal, requiredAnnualReturn, requiredMonthlyContribution } from "
 import { formatMoney, formatPercent } from "@/lib/format";
 import type { Goal } from "@/types/domain";
 
-export function GoalsClient({ goal }: { goal: Goal }) {
+export function GoalsClient({ goal, mode, updatedAt }: { goal: Goal; mode?: string; updatedAt?: string }) {
   const [monthly, setMonthly] = useState(goal.monthlyContributionCny);
   const [baseReturn, setBaseReturn] = useState(0.07);
   const activeGoal = useMemo(() => ({ ...goal, monthlyContributionCny: monthly }), [goal, monthly]);
@@ -20,7 +20,7 @@ export function GoalsClient({ goal }: { goal: Goal }) {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-3xl font-semibold">目标 Goals</h1><p className="mt-2 text-sm text-muted-foreground">预测用于规划，不代表保证收益；目标口径为可自由投资、可交易、可调配金融资产。</p></div>
+      <div><h1 className="text-3xl font-semibold">目标 Goals</h1><p className="mt-2 text-sm text-muted-foreground">预测用于规划，不代表保证收益；目标口径为可自由投资、可交易、可调配金融资产。{mode === "supabase" ? ` 当前值来自持久化账本，更新时间 ${updatedAt ? new Date(updatedAt).toLocaleString("zh-CN") : "-"}` : " 当前为 Demo Mode 模拟数据。"}</p></div>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="目标金额" value={formatMoney(goal.targetAmountCny, "CNY")} sub={goal.name} />
         <MetricCard label="当前可投资资产" value={formatMoney(goal.currentAmountCny, "CNY")} sub={`${progress.toFixed(1)}% 已完成`} />
@@ -45,7 +45,7 @@ export function GoalsClient({ goal }: { goal: Goal }) {
           <CardHeader><CardTitle>参数控制</CardTitle></CardHeader>
           <Control label="月度投入" min={0} max={100000} step={1000} value={monthly} suffix="元" onChange={setMonthly} />
           <Control label="基准年化收益率" min={0} max={0.16} step={0.005} value={baseReturn} suffix="%" onChange={setBaseReturn} percent />
-          <div className="mt-6 rounded-lg bg-muted/60 p-4 text-sm leading-6 text-muted-foreground">
+          <div className="mt-6 rounded-2xl border border-border/30 bg-muted/35 p-4 text-sm leading-6 text-muted-foreground">
             计算口径：每月月底投入，收益率按月复利折算；房产与公司内部受限股票不计入目标资产。预测结果仅用于家庭规划，不构成收益承诺或投资建议。
           </div>
         </Card>
@@ -55,7 +55,7 @@ export function GoalsClient({ goal }: { goal: Goal }) {
         <div className="grid gap-4 md:grid-cols-3">
           {scenarios.map((scenario) => {
             const final = scenario.points[scenario.points.length - 1].amountCny;
-            return <div key={scenario.name} className="rounded-lg bg-muted/55 p-4"><p className="font-medium">{scenario.name}</p><p className="number mt-2 text-xl font-semibold">{formatMoney(final, "CNY", true)}</p><p className="mt-2 text-sm text-muted-foreground">年化假设 {formatPercent(scenario.annualReturn)}</p></div>;
+            return <div key={scenario.name} className="rounded-2xl border border-border/30 bg-muted/35 p-4"><p className="font-medium">{scenario.name}</p><p className="number mt-2 text-xl font-semibold">{formatMoney(final, "CNY", true)}</p><p className="mt-2 text-sm text-muted-foreground">年化假设 {formatPercent(scenario.annualReturn)}</p></div>;
           })}
         </div>
       </Card>

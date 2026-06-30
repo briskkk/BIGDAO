@@ -5,11 +5,11 @@ type Tone = "neutral" | "success" | "danger" | "warning" | "primary";
 
 export function Badge({ className, tone = "neutral", ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: Tone }) {
   const tones: Record<Tone, string> = {
-    neutral: "bg-muted text-muted-foreground",
-    success: "bg-success/10 text-success",
-    danger: "bg-danger/10 text-danger",
-    warning: "bg-warning/12 text-warning",
-    primary: "bg-primary/10 text-primary"
+    neutral: "border-border/50 bg-muted/45 text-muted-foreground",
+    success: "border-success/20 bg-success/10 text-success",
+    danger: "border-danger/25 bg-danger/10 text-danger",
+    warning: "border-warning/25 bg-warning/10 text-warning",
+    primary: "border-primary/30 bg-primary/12 text-primary"
   };
-  return <span className={cn("inline-flex items-center rounded-md px-2 py-1 text-xs font-medium", tones[tone], className)} {...props} />;
+  return <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium", tones[tone], className)} {...props} />;
 }

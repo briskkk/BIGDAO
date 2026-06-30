@@ -1,28 +1,10 @@
-import {
-  accounts,
-  fxRates,
-  goal,
-  holdings,
-  instruments,
-  marketMood,
-  quotes,
-  strategyRules,
-  transactions
-} from "@/lib/mock-data";
-import { buildAssetSnapshot } from "@/lib/calculations";
+import { MockWealthRepository } from "@/lib/repository/mock.repository";
+import { SupabaseWealthRepository } from "@/lib/repository/supabase.repository";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 
-export function getWealthRepository() {
-  const snapshot = buildAssetSnapshot({ accounts, holdings, instruments, quotes, fxRates });
-  return {
-    accounts,
-    fxRates,
-    goal: { ...goal, currentAmountCny: snapshot.investableAssetsCny },
-    holdings,
-    instruments,
-    marketMood,
-    quotes,
-    snapshot,
-    strategyRules,
-    transactions
-  };
+export async function getWealthRepository() {
+  const repository = hasSupabaseEnv() ? new SupabaseWealthRepository() : new MockWealthRepository();
+  return repository.getData();
 }
+
+export type { WealthRepositoryData } from "@/lib/repository/repository.interface";

@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { buildHoldingViews, type HoldingView } from "@/lib/calculations";
 import { cnAssetType, formatMoney, formatPercent } from "@/lib/format";
-import type { getWealthRepository } from "@/lib/repository";
+import type { WealthRepositoryData } from "@/lib/repository";
 import { cn } from "@/lib/utils";
 
-type Repo = ReturnType<typeof getWealthRepository>;
+type Repo = WealthRepositoryData;
 type ViewMode = "card" | "table";
 
 export function PortfolioClient({ repo }: { repo: Repo }) {
@@ -39,10 +39,10 @@ export function PortfolioClient({ repo }: { repo: Repo }) {
 
   return (
     <div className="space-y-6">
-      <PageTitle title="持仓 Portfolio" sub="可筛选、搜索、排序与详情观察；全部价格与估值均为模拟数据。" />
+      <PageTitle title="持仓 Portfolio" sub={repo.mode === "demo" ? "可筛选、搜索、排序与详情观察；全部价格与估值均为模拟数据。" : "持仓由交易流水自动聚合生成，标准金融资产不直接手工编辑数量。缺少报价或估值时显示待估值。"} />
       <Card>
         <div className="grid gap-3 lg:grid-cols-[1.4fr_repeat(5,1fr)_auto]">
-          <label className="flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3">
+          <label className="aurora-input flex h-10 items-center gap-2 px-3">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input className="w-full bg-transparent text-sm outline-none" placeholder="搜索名称、代码、账户" value={query} onChange={(e) => setQuery(e.target.value)} />
           </label>
@@ -57,7 +57,7 @@ export function PortfolioClient({ repo }: { repo: Repo }) {
         </div>
       </Card>
 
-      {mode === "table" ? <PortfolioTable items={filtered} onSelect={setSelected} /> : <PortfolioCards items={filtered} onSelect={setSelected} />}
+      {filtered.length === 0 ? <Card><p className="text-sm text-muted-foreground">暂无持仓。请先在交易账本新增买入/申购/转入交易，或通过 CSV 导入交易流水。</p></Card> : mode === "table" ? <PortfolioTable items={filtered} onSelect={setSelected} /> : <PortfolioCards items={filtered} onSelect={setSelected} />}
       <HoldingDrawer item={selected} onClose={() => setSelected(null)} />
     </div>
   );
@@ -74,7 +74,7 @@ function PageTitle({ title, sub }: { title: string; sub: string }) {
 
 function Select({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: [string, string][] }) {
   return (
-    <select className="h-10 rounded-lg border border-border bg-background px-3 text-sm outline-none" value={value} onChange={(e) => onChange(e.target.value)}>
+    <select className="aurora-input h-10 px-3 text-sm" value={value} onChange={(e) => onChange(e.target.value)}>
       {options.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
     </select>
   );
@@ -84,7 +84,7 @@ function PortfolioTable({ items, onSelect }: { items: HoldingView[]; onSelect: (
   return (
     <Card className="overflow-x-auto p-0">
       <table className="w-full min-w-[1080px] border-collapse text-sm">
-        <thead className="bg-muted/70 text-left text-muted-foreground">
+        <thead className="text-left text-muted-foreground">
           <tr>
             {["名称", "类型", "市场", "账户", "数量", "成本价", "最新价/估值", "市值", "今日盈亏", "累计收益", "仓位", "更新时间"].map((head) => (
               <th key={head} className="px-4 py-3 font-medium">{head}</th>
@@ -93,7 +93,7 @@ function PortfolioTable({ items, onSelect }: { items: HoldingView[]; onSelect: (
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={item.holding.id} className="cursor-pointer border-t border-border/70 hover:bg-muted/45" onClick={() => onSelect(item)}>
+            <tr key={item.holding.id} className="cursor-pointer border-t border-border/35" onClick={() => onSelect(item)}>
               <td className="px-4 py-3">
                 <div className="font-medium">{item.instrument.name}</div>
                 <div className="text-xs text-muted-foreground">{item.instrument.symbol}</div>
@@ -146,8 +146,8 @@ function PortfolioCards({ items, onSelect }: { items: HoldingView[]; onSelect: (
 function HoldingDrawer({ item, onClose }: { item: HoldingView | null; onClose: () => void }) {
   if (!item) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-foreground/20" onClick={onClose}>
-      <aside className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto bg-card p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-background/55 backdrop-blur-sm" onClick={onClose}>
+      <aside className="aurora-panel absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto rounded-none border-y-0 border-r-0 p-6 shadow-soft" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold">{item.instrument.name}</h2>
@@ -167,7 +167,7 @@ function HoldingDrawer({ item, onClose }: { item: HoldingView | null; onClose: (
           <p className="text-sm leading-6 text-muted-foreground">{item.holding.thesis}</p>
           <div className="flex flex-wrap gap-2">{item.holding.riskTags.map((tag) => <Badge key={tag} tone="warning">{tag}</Badge>)}</div>
         </section>
-        <section className="mt-6 rounded-lg bg-muted/60 p-4">
+        <section className="mt-6 rounded-2xl border border-primary/15 bg-primary/10 p-4">
           <h3 className="font-semibold">模拟 AI 观察</h3>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">该持仓应与核心仓、现金缓冲和目标路径一起观察。这里展示的是规则引擎生成的策略观察，不是确定性投资建议。</p>
         </section>
@@ -177,5 +177,5 @@ function HoldingDrawer({ item, onClose }: { item: HoldingView | null; onClose: (
 }
 
 function Info({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-lg bg-muted/55 p-4"><p className="text-sm text-muted-foreground">{label}</p><p className="number mt-2 font-semibold">{value}</p></div>;
+  return <div className="rounded-2xl border border-border/30 bg-muted/35 p-4"><p className="text-sm text-muted-foreground">{label}</p><p className="number mt-2 font-semibold">{value}</p></div>;
 }

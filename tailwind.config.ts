@@ -25,8 +25,9 @@ const config: Config = {
         warning: "hsl(var(--warning))"
       },
       boxShadow: {
-        soft: "0 18px 50px rgba(23, 31, 28, 0.08)",
-        line: "0 1px 0 rgba(15, 23, 18, 0.06)"
+        soft: "0 22px 70px rgba(0, 0, 0, 0.28)",
+        glow: "0 0 0 1px rgba(36, 200, 255, 0.18), 0 18px 60px rgba(36, 200, 255, 0.12)",
+        line: "0 1px 0 rgba(255, 255, 255, 0.06)"
       }
     }
   },

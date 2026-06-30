@@ -19,9 +19,9 @@ export function MetricCard({
     <Card className="min-h-32">
       <div className="mb-5 flex items-center justify-between text-sm text-muted-foreground">
         <span>{label}</span>
-        {icon}
+        <span className="rounded-xl border border-primary/15 bg-primary/10 p-2 text-primary">{icon}</span>
       </div>
-      <div className="number text-2xl font-semibold tracking-normal sm:text-3xl">{value}</div>
+      <div className="number text-2xl font-semibold tracking-normal text-foreground sm:text-3xl">{value}</div>
       {sub ? (
         <p
           className={cn(

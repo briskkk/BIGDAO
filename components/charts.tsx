@@ -4,6 +4,7 @@ import {
   Area,
   AreaChart,
   Cell,
+  CartesianGrid,
   Line,
   LineChart,
   Pie,
@@ -16,21 +17,59 @@ import {
 import type { AllocationSlice, GoalScenario } from "@/types/domain";
 import { formatMoney } from "@/lib/format";
 
-const colors = ["#123d2b", "#6f8f7a", "#c4a35a", "#6d7783", "#9b5f54", "#2f6f8f", "#a7b2a2"];
+const colors = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--chart-6)",
+  "var(--chart-muted)"
+];
+
+const tooltipStyle = {
+  background: "rgba(8, 19, 31, 0.94)",
+  border: "1px solid var(--border-subtle)",
+  borderRadius: "14px",
+  color: "var(--text-primary)",
+  boxShadow: "0 18px 50px rgba(0,0,0,0.32)"
+};
 
 export function AllocationDonut({ data }: { data: AllocationSlice[] }) {
+  const total = data.reduce((sum, item) => sum + item.valueCny, 0);
   return (
-    <div className="h-72 w-full">
+    <div className="relative h-72 w-full">
       <ResponsiveContainer>
         <PieChart>
-          <Pie data={data} dataKey="valueCny" nameKey="label" innerRadius="58%" outerRadius="82%" paddingAngle={2}>
+          <defs>
+            {colors.map((color, index) => (
+              <linearGradient key={color} id={`donut-${index}`} x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.96} />
+                <stop offset="100%" stopColor={index % 2 === 0 ? "var(--accent-secondary)" : "var(--accent-primary)"} stopOpacity={0.72} />
+              </linearGradient>
+            ))}
+          </defs>
+          <Pie
+            data={data}
+            dataKey="valueCny"
+            nameKey="label"
+            innerRadius="60%"
+            outerRadius="82%"
+            paddingAngle={3}
+            stroke="rgba(7,17,31,0.72)"
+            strokeWidth={2}
+          >
             {data.map((entry, index) => (
-              <Cell key={entry.key} fill={colors[index % colors.length]} />
+              <Cell key={entry.key} fill={`url(#donut-${index % colors.length})`} />
             ))}
           </Pie>
-          <Tooltip formatter={(value: number) => formatMoney(value, "CNY", true)} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => formatMoney(value, "CNY", true)} />
         </PieChart>
       </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Total</span>
+        <span className="number mt-1 text-xl font-semibold">{formatMoney(total, "CNY", true)}</span>
+      </div>
     </div>
   );
 }
@@ -47,12 +86,13 @@ export function GoalPathChart({ scenarios }: { scenarios: GoalScenario[] }) {
     <div className="h-80 w-full">
       <ResponsiveContainer>
         <LineChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
-          <XAxis dataKey="year" tickLine={false} axisLine={false} tickFormatter={(v) => `${v}年`} />
-          <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => `${v}万`} width={56} />
-          <Tooltip formatter={(value: number) => `${value.toFixed(0)} 万元`} labelFormatter={(label) => `第 ${label} 年`} />
-          <Line type="monotone" dataKey="保守" stroke="#7d897f" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="基准" stroke="#123d2b" strokeWidth={3} dot={false} />
-          <Line type="monotone" dataKey="乐观" stroke="#c4a35a" strokeWidth={2} dot={false} />
+          <CartesianGrid stroke="rgba(145,180,220,0.09)" vertical={false} />
+          <XAxis dataKey="year" tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 12 }} tickFormatter={(v) => `${v}年`} />
+          <YAxis tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 12 }} tickFormatter={(v) => `${v}万`} width={56} />
+          <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => `${value.toFixed(0)} 万元`} labelFormatter={(label) => `第 ${label} 年`} />
+          <Line type="monotone" dataKey="保守" stroke="var(--chart-muted)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+          <Line type="monotone" dataKey="基准" stroke="var(--accent-primary)" strokeWidth={3} dot={false} activeDot={{ r: 5, stroke: "var(--bg-base)", strokeWidth: 2 }} />
+          <Line type="monotone" dataKey="乐观" stroke="var(--accent-secondary)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -74,14 +114,15 @@ export function MiniPerformanceChart() {
         <AreaChart data={data}>
           <defs>
             <linearGradient id="wealthArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#123d2b" stopOpacity={0.22} />
-              <stop offset="100%" stopColor="#123d2b" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="var(--accent-primary)" stopOpacity={0.28} />
+              <stop offset="100%" stopColor="var(--accent-primary)" stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="month" tickLine={false} axisLine={false} />
+          <CartesianGrid stroke="rgba(145,180,220,0.08)" vertical={false} />
+          <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "var(--text-muted)", fontSize: 12 }} />
           <YAxis hide domain={["dataMin - 5", "dataMax + 5"]} />
-          <Tooltip />
-          <Area type="monotone" dataKey="value" stroke="#123d2b" fill="url(#wealthArea)" strokeWidth={2} />
+          <Tooltip contentStyle={tooltipStyle} />
+          <Area type="monotone" dataKey="value" stroke="var(--accent-primary)" fill="url(#wealthArea)" strokeWidth={2.5} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
