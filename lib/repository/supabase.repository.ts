@@ -20,13 +20,26 @@ import {
   toLegacySnapshot,
   toLegacyTransaction
 } from "@/lib/repository/mappers";
-import type { WealthRepository, WealthRepositoryData } from "@/lib/repository/repository.interface";
+import type { WealthRepository, WealthRepositoryData, WealthRepositoryScope } from "@/lib/repository/repository.interface";
 import { marketMood, strategyRules } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/server";
 
+const CACHE_TTL_MS = 30_000;
+const CACHE_VERSION = "2026-07-01-v1";
+const cacheStore = new Map<string, { expiresAt: number; data: WealthRepositoryData }>();
+
 export class SupabaseWealthRepository implements WealthRepository {
+  constructor(private readonly scope: WealthRepositoryScope = "full") {}
+
   async getData(): Promise<WealthRepositoryData> {
     const supabase = (await createClient()) as any;
+    const {
+      data: { session }
+    } = await supabase.auth.getSession();
+    const sessionCacheKey = session?.access_token ? `${CACHE_VERSION}:session:${session.access_token}:${this.scope}` : undefined;
+    const sessionCached = sessionCacheKey ? cacheStore.get(sessionCacheKey) : undefined;
+    if (sessionCached && sessionCached.expiresAt > Date.now()) return sessionCached.data;
+
     const {
       data: { user }
     } = await supabase.auth.getUser();
@@ -44,16 +57,22 @@ export class SupabaseWealthRepository implements WealthRepository {
     const family = Array.isArray(membership.families) ? membership.families[0] : membership.families;
     const familyId = membership.family_id;
     const baseCurrency = family?.base_currency === "USD" || family?.base_currency === "HKD" ? family.base_currency : "CNY";
+    const cacheKey = sessionCacheKey ?? `${CACHE_VERSION}:${user.id}:${familyId}:${this.scope}`;
+    const cached = cacheStore.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.data;
 
+    const shouldLoadLedger = this.scope === "full";
+    const shouldLoadImports = this.scope === "full" || this.scope === "imports";
+    const shouldLoadGoals = this.scope === "full";
     const [accountsRes, instrumentsRes, transactionsRes, valuationsRes, quotesRes, fxRes, goalsRes, importsRes] = await Promise.all([
       supabase.from("accounts").select("*").eq("family_id", familyId).is("deleted_at", null).order("created_at"),
       supabase.from("instruments").select("*").eq("family_id", familyId).is("deleted_at", null).order("created_at"),
-      supabase.from("transactions").select("*").eq("family_id", familyId).order("trade_at", { ascending: false }),
-      supabase.from("manual_valuations").select("*").eq("family_id", familyId).order("valuation_date", { ascending: false }),
-      supabase.from("quotes").select("*").order("quote_time", { ascending: false }),
-      supabase.from("fx_rates").select("*").order("quote_time", { ascending: false }),
-      supabase.from("goals").select("*").eq("family_id", familyId).is("deleted_at", null).order("created_at"),
-      supabase.from("import_batches").select("*").eq("family_id", familyId).order("uploaded_at", { ascending: false })
+      shouldLoadLedger ? supabase.from("transactions").select("*").eq("family_id", familyId).order("trade_at", { ascending: false }) : resolvedQuery([]),
+      shouldLoadLedger ? supabase.from("manual_valuations").select("*").eq("family_id", familyId).order("valuation_date", { ascending: false }) : resolvedQuery([]),
+      shouldLoadLedger ? supabase.from("quotes").select("*").order("quote_time", { ascending: false }) : resolvedQuery([]),
+      shouldLoadLedger ? supabase.from("fx_rates").select("*").order("quote_time", { ascending: false }) : resolvedQuery([]),
+      shouldLoadGoals ? supabase.from("goals").select("*").eq("family_id", familyId).is("deleted_at", null).order("created_at") : resolvedQuery([]),
+      shouldLoadImports ? supabase.from("import_batches").select("*").eq("family_id", familyId).order("uploaded_at", { ascending: false }) : resolvedQuery([])
     ]);
 
     for (const res of [accountsRes, instrumentsRes, transactionsRes, valuationsRes, quotesRes, fxRes, goalsRes, importsRes]) {
@@ -84,7 +103,7 @@ export class SupabaseWealthRepository implements WealthRepository {
     const legacyQuotes = state.valuedPositions.map(toLegacyQuote);
     const snapshot = toLegacySnapshot(state.aggregate);
 
-    return {
+    const data = {
       mode: "supabase",
       isAuthenticated: true,
       familyId,
@@ -112,8 +131,18 @@ export class SupabaseWealthRepository implements WealthRepository {
         updatedAt: state.aggregate.updatedAt,
         pendingValuationCount: state.aggregate.pendingValuationCount
       }
-    };
+    } satisfies WealthRepositoryData;
+    cacheStore.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, data });
+    return data;
   }
+}
+
+export function clearSupabaseRepositoryCache() {
+  cacheStore.clear();
+}
+
+function resolvedQuery(data: unknown[]) {
+  return Promise.resolve({ data, error: null });
 }
 
 function normalizeFxRates(rates: import("@/types/domain").WealthFxRate[], baseCurrency: "CNY" | "USD" | "HKD") {

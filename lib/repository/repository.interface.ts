@@ -50,6 +50,8 @@ export interface WealthRepositoryData {
   };
 }
 
+export type WealthRepositoryScope = "full" | "settings" | "imports";
+
 export interface WealthRepository {
   getData(): Promise<WealthRepositoryData>;
 }

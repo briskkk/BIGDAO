@@ -5,17 +5,16 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import type { WealthRepositoryData } from "@/lib/repository";
 
-export function SettingsClient({ repo }: { repo: WealthRepositoryData }) {
+export function SettingsClient({ mode }: { mode: "demo" | "supabase" }) {
   return (
     <div className="space-y-6">
       <div><h1 className="text-3xl font-semibold">设置 Settings</h1><p className="mt-2 text-sm text-muted-foreground">第一阶段提供偏好与占位能力，为后续真实数据接入预留入口。</p></div>
       <section className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>基础偏好</CardTitle></CardHeader>
-          <Row label="当前数据模式" value={<Badge tone={repo.mode === "demo" ? "warning" : "success"}>{repo.mode === "demo" ? "Demo / Mock" : "Supabase"}</Badge>} />
-          <Row label="Supabase 连接状态" value={<Badge tone={repo.mode === "supabase" ? "success" : "neutral"}>{repo.mode === "supabase" ? "已连接" : "未配置环境变量"}</Badge>} />
+          <Row label="当前数据模式" value={<Badge tone={mode === "demo" ? "warning" : "success"}>{mode === "demo" ? "Demo / Mock" : "Supabase"}</Badge>} />
+          <Row label="Supabase 连接状态" value={<Badge tone={mode === "supabase" ? "success" : "neutral"}>{mode === "supabase" ? "已连接" : "未配置环境变量"}</Badge>} />
           <Row label="基准货币" value={<Badge tone="primary">CNY</Badge>} />
           <Row label="主题模式" value={<ThemeToggle />} />
           <Row label="市场数据刷新频率" value={<select className="aurora-input h-10 px-3 text-sm"><option>手动刷新（占位）</option><option>15 分钟（占位）</option><option>每日收盘后（占位）</option></select>} />

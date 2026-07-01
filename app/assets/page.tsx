@@ -83,7 +83,7 @@ export default async function AssetsPage() {
             <CardHeader><CardTitle>归档账户</CardTitle></CardHeader>
             <div className="grid gap-2">
               {repo.operational.accounts.map((account) => (
-                <form key={account.id} action={archiveAccountAction} className="flex items-center justify-between rounded-xl border border-border/30 bg-muted/25 p-3" onSubmit={(event) => !confirm("确认归档账户？历史交易保留，账户软删除。") && event.preventDefault()}>
+                <form key={account.id} action={archiveAccountAction} className="flex items-center justify-between rounded-xl border border-border/30 bg-muted/25 p-3">
                   <input type="hidden" name="id" value={account.id} />
                   <span className="text-sm">{account.name}</span>
                   <Button size="sm" variant="secondary" type="submit">归档</Button>

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { signInAction, signUpAction } from "@/lib/actions/auth-actions";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; message?: string; next?: string }> }) {
   if (!hasSupabaseEnv()) redirect("/");
   const params = await searchParams;
   const next = params.next ?? "/";
@@ -27,6 +27,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             登录后会进入你的家庭空间。注册用户会自动创建 profile、family、owner 成员关系、默认现金账户和 1,500 万目标。
           </p>
           {params.error ? <div className="mt-5 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{params.error}</div> : null}
+          {params.message ? <div className="mt-5 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">{params.message}</div> : null}
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">

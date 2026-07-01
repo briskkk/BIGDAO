@@ -1,6 +1,6 @@
 import { SettingsClient } from "@/components/settings/settings-client";
-import { getWealthRepository } from "@/lib/repository";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 export default async function SettingsPage() {
-  return <SettingsClient repo={await getWealthRepository()} />;
+  return <SettingsClient mode={hasSupabaseEnv() ? "supabase" : "demo"} />;
 }

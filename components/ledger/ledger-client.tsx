@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,10 @@ export function LedgerClient({ repo }: { repo: Repo }) {
   const [filter, setFilter] = useState("all");
   const [editing, setEditing] = useState<Transaction | null>(null);
   const rows = useMemo(() => items.filter((item) => filter === "all" || item.type === filter), [items, filter]);
+
+  useEffect(() => {
+    setItems(repo.transactions);
+  }, [repo.transactions]);
 
   function save(tx: Transaction) {
     setItems((current) => current.some((item) => item.id === tx.id) ? current.map((item) => item.id === tx.id ? tx : item) : [tx, ...current]);
@@ -83,7 +87,21 @@ export function LedgerClient({ repo }: { repo: Repo }) {
 }
 
 function emptyTransaction(repo: Repo): Transaction {
-  return { id: `tx-${Date.now()}`, date: "2026-06-30", accountId: repo.accounts[0].id, instrumentId: repo.instruments[2].id, type: "买入", quantity: 0, price: 0, amount: 0, currency: "USD", fxRate: 7.18, fee: 0, note: "", tags: [] };
+  return {
+    id: `tx-${Date.now()}`,
+    date: "2026-07-01",
+    accountId: repo.accounts[0]?.id ?? repo.operational.accounts[0]?.id ?? "",
+    instrumentId: repo.instruments[2]?.id ?? repo.instruments[0]?.id,
+    type: "买入",
+    quantity: 0,
+    price: 0,
+    amount: 0,
+    currency: repo.accounts[0]?.currencies[0] ?? repo.operational.accounts[0]?.currency ?? "CNY",
+    fxRate: 1,
+    fee: 0,
+    note: "",
+    tags: []
+  };
 }
 
 function TransactionModal({ repo, tx, onSave, onClose }: { repo: Repo; tx: Transaction; onSave: (tx: Transaction) => void; onClose: () => void }) {
@@ -99,6 +117,8 @@ function TransactionModal({ repo, tx, onSave, onClose }: { repo: Repo; tx: Trans
             <Input label="日期" name="tradeAt" value={(source?.tradeAt ?? new Date().toISOString()).slice(0, 10)} onChange={() => undefined} />
             <Select label="账户" name="accountId" value={source?.accountId ?? repo.operational.accounts[0]?.id ?? ""} onChange={() => undefined} options={repo.operational.accounts.map((item) => [item.id, item.name])} />
             <Select label="标的" name="instrumentId" value={source?.instrumentId ?? ""} onChange={() => undefined} options={[["", "无"], ...repo.operational.instruments.map((item) => [item.id, item.name])]} />
+            <Input label="新标的代码" name="instrumentSymbol" value="" onChange={() => undefined} />
+            <Input label="新标的名称" name="instrumentName" value="" onChange={() => undefined} />
             <Select label="类型" name="transactionType" value={source?.transactionType ?? "buy"} onChange={() => undefined} options={["buy", "sell", "subscribe", "redeem", "dividend", "interest", "transfer_in", "transfer_out", "fx_exchange", "fee", "adjustment", "valuation_update"].map((item) => [item, item])} />
             <Input label="数量" name="quantity" value={String(source?.quantity ?? 0)} onChange={() => undefined} />
             <Input label="单价" name="price" value={String(source?.price ?? 0)} onChange={() => undefined} />

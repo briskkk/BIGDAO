@@ -6,12 +6,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Database } from "@/types/database.types";
 import type { LedgerTransactionType } from "@/types/domain";
+import { clearSupabaseRepositoryCache } from "@/lib/repository/supabase.repository";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 
 type TransactionInsert = Database["public"]["Tables"]["transactions"]["Insert"];
 
 const refreshPaths = ["/", "/portfolio", "/assets", "/ledger", "/goals", "/settings", "/imports"];
+const instrumentRequiredTypes = new Set(["buy", "sell", "subscribe", "redeem", "transfer_in", "transfer_out", "adjustment"]);
 
 export async function createAccountAction(formData: FormData) {
   if (!hasSupabaseEnv()) return;
@@ -53,7 +55,7 @@ export async function upsertTransactionAction(formData: FormData) {
   const supabase = (await createClient()) as any;
   const { user, familyId } = await getUserFamily(supabase);
   const id = String(formData.get("id") ?? "");
-  const payload = transactionPayloadFromForm(formData, familyId, user.id);
+  const payload = await transactionPayloadFromForm(supabase, formData, familyId, user.id);
   if (id) {
     const { data: before } = await supabase.from("transactions").select("*").eq("id", id).eq("family_id", familyId).single();
     const { data, error } = await supabase.from("transactions").update(payload).eq("id", id).eq("family_id", familyId).select("*").single();
@@ -205,19 +207,22 @@ export async function revertImportBatchAction(formData: FormData) {
   refresh();
 }
 
-function transactionPayloadFromForm(formData: FormData, familyId: string, userId: string): TransactionInsert {
+async function transactionPayloadFromForm(supabase: any, formData: FormData, familyId: string, userId: string): Promise<TransactionInsert> {
+  const transactionType = String(formData.get("transactionType") ?? "buy") as Database["public"]["Enums"]["transaction_type"];
+  const currency = String(formData.get("currency") ?? "CNY");
+  const instrumentId = await resolveInstrumentId(supabase, formData, familyId, currency, transactionType);
   return {
     family_id: familyId,
     account_id: String(formData.get("accountId") ?? ""),
-    instrument_id: String(formData.get("instrumentId") || "") || null,
-    transaction_type: String(formData.get("transactionType") ?? "buy") as Database["public"]["Enums"]["transaction_type"],
+    instrument_id: instrumentId,
+    transaction_type: transactionType,
     trade_at: new Date(String(formData.get("tradeAt") ?? new Date().toISOString())).toISOString(),
     quantity: String(formData.get("quantity") ?? "0"),
     price: String(formData.get("price") ?? "0"),
     gross_amount: String(formData.get("grossAmount") ?? "0"),
     fee_amount: String(formData.get("feeAmount") ?? "0"),
     tax_amount: String(formData.get("taxAmount") ?? "0"),
-    currency: String(formData.get("currency") ?? "CNY"),
+    currency,
     fx_rate_to_base: String(formData.get("fxRateToBase") ?? "1"),
     cash_amount: String(formData.get("cashAmount") ?? "0"),
     reference_no: String(formData.get("referenceNo") ?? ""),
@@ -225,6 +230,59 @@ function transactionPayloadFromForm(formData: FormData, familyId: string, userId
     source: "manual",
     created_by: userId
   };
+}
+
+async function resolveInstrumentId(
+  supabase: any,
+  formData: FormData,
+  familyId: string,
+  currency: string,
+  transactionType: Database["public"]["Enums"]["transaction_type"]
+) {
+  const selectedId = String(formData.get("instrumentId") || "");
+  if (selectedId) return selectedId;
+
+  const symbol = String(formData.get("instrumentSymbol") ?? "").trim();
+  const name = String(formData.get("instrumentName") ?? "").trim();
+  if (!symbol) {
+    if (instrumentRequiredTypes.has(transactionType)) {
+      throw new Error("买入、卖出、申购、赎回、转入、转出和持仓调整必须选择已有标的，或填写新标的代码。");
+    }
+    return null;
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("instruments")
+    .select("id")
+    .eq("family_id", familyId)
+    .eq("symbol", symbol)
+    .eq("market", inferMarketFromCurrency(currency))
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  if (existing?.id) return existing.id;
+
+  const { data, error } = await supabase
+    .from("instruments")
+    .insert({
+      family_id: familyId,
+      symbol,
+      name: name || symbol,
+      asset_type: transactionType === "valuation_update" ? "property" : "stock",
+      market: inferMarketFromCurrency(currency),
+      currency,
+      is_manual_valuation: transactionType === "valuation_update"
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id;
+}
+
+function inferMarketFromCurrency(currency: string) {
+  if (currency === "USD") return "US";
+  if (currency === "HKD") return "HK";
+  if (currency === "CNY") return "CN";
+  return "OTHER";
 }
 
 async function getUserFamily(supabase: any) {
@@ -259,5 +317,6 @@ async function audit(
 }
 
 function refresh() {
+  clearSupabaseRepositoryCache();
   refreshPaths.forEach((path) => revalidatePath(path));
 }

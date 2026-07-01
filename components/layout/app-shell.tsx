@@ -50,6 +50,7 @@ export function AppShell({ children, configuredMode = "demo" }: { children: Reac
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 className={cn(
                   "group relative flex items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-sm text-muted-foreground transition duration-200 hover:border-border/30 hover:bg-muted/35 hover:text-foreground",
                   active &&
@@ -96,6 +97,7 @@ export function AppShell({ children, configuredMode = "demo" }: { children: Reac
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-[10px] text-muted-foreground",
                 active && "border border-primary/20 bg-primary/10 text-foreground"

@@ -69,7 +69,7 @@ export function CommandBar() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="sm">
-            <Link href="/ledger"><Plus className="h-4 w-4" />新增交易</Link>
+            <Link href="/ledger" prefetch={false}><Plus className="h-4 w-4" />新增交易</Link>
           </Button>
           <Button variant="secondary" size="sm"><FileInput className="h-4 w-4" />导入账本</Button>
           <Button variant="secondary" size="sm"><RefreshCw className="h-4 w-4" />刷新估值</Button>
@@ -91,7 +91,7 @@ export function WealthTrajectoryPanel({
   const data = buildTrajectoryData(repo, scenarios);
   const targetGap = repo.goal.targetAmountCny - repo.snapshot.investableAssetsCny;
   const achieveLabel = getAchieveLabel(repo.goal.targetAmountCny, scenarios[1]);
-  const dailyRatio = repo.snapshot.dailyPnlCny / repo.snapshot.investableAssetsCny;
+  const dailyRatio = safeRatio(repo.snapshot.dailyPnlCny, repo.snapshot.investableAssetsCny);
 
   return (
     <section className="wealth-module col-span-12 xl:col-span-8">
@@ -198,7 +198,7 @@ export function LiquidityWaterfall({ repo, views }: { repo: Repo; views: Holding
       <div className="mt-6">
         <div className="mb-3 flex h-4 overflow-hidden rounded-full bg-muted/45">
           {segments.map((segment) => (
-            <span key={segment.label} className={segment.color} style={{ width: `${(segment.value / total) * 100}%` }} />
+            <span key={segment.label} className={segment.color} style={{ width: `${safeRatio(segment.value, total) * 100}%` }} />
           ))}
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -220,7 +220,7 @@ export function AllocationRiskPanel({ repo, views }: { repo: Repo; views: Holdin
   const byCurrency = groupAllocation(views, (view) => view.instrument.currency, (key) => key, repo.snapshot.netWorthCny);
   const byIndustry = groupAllocation(views, (view) => inferIndustry(view), (key) => key, repo.snapshot.netWorthCny);
   const largest = [...views].sort((a, b) => b.marketValueCny - a.marketValueCny)[0];
-  const restrictedRatio = sumBy(views.filter((view) => !view.account.includeInInvestableGoal)) / repo.snapshot.netWorthCny;
+  const restrictedRatio = safeRatio(sumBy(views.filter((view) => !view.account.includeInInvestableGoal)), repo.snapshot.netWorthCny);
 
   return (
     <section className="wealth-module col-span-12 xl:col-span-7">
@@ -234,7 +234,11 @@ export function AllocationRiskPanel({ repo, views }: { repo: Repo; views: Holdin
         </div>
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <ThresholdTile label="单一标的集中度" value={`${largest.instrument.name} ${formatPercent(largest.marketValueCny / repo.snapshot.netWorthCny)}`} status="观察" />
+        <ThresholdTile
+          label="单一标的集中度"
+          value={largest ? `${largest.instrument.name} ${formatPercent(safeRatio(largest.marketValueCny, repo.snapshot.netWorthCny))}` : "暂无持仓"}
+          status={largest ? "观察" : "等待交易流水"}
+        />
         <ThresholdTile label="受限资产占净资产" value={formatPercent(restrictedRatio)} status="偏高" tone="warning" />
         <ThresholdTile label="港股科技上限" value="接近 15% 阈值" status="需关注" tone="warning" />
       </div>
@@ -399,7 +403,7 @@ function AllocationBars({ title, data }: { title: string; data: AllocationSlice[
     <div>
       <h3 className="mb-4 text-sm font-medium">{title}</h3>
       <div className="space-y-4">
-        {data.map((item) => (
+        {data.length === 0 ? <EmptyPanelText text="暂无资产类别数据" /> : data.map((item) => (
           <div key={item.key}>
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{item.label}</span>
@@ -422,16 +426,18 @@ function RiskBand({ label, data }: { label: string; data: AllocationSlice[] }) {
         <span className="text-muted-foreground">{data.length} 项</span>
       </div>
       <div className="mb-3 flex h-2.5 overflow-hidden rounded-full bg-muted/45">
-        {data.map((item, index) => (
+        {data.length === 0 ? (
+          <span className="w-full bg-muted/50" />
+        ) : data.map((item, index) => (
           <span
             key={item.key}
             className={index % 3 === 0 ? "bg-primary" : index % 3 === 1 ? "bg-success" : "bg-warning"}
-            style={{ width: `${(item.valueCny / total) * 100}%` }}
+            style={{ width: `${safeRatio(item.valueCny, total) * 100}%` }}
           />
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
-        {data.slice(0, 4).map((item) => (
+        {data.length === 0 ? <Badge>暂无数据</Badge> : data.slice(0, 4).map((item) => (
           <Badge key={item.key}>{item.label} {formatPercent(item.ratio)}</Badge>
         ))}
       </div>
@@ -478,7 +484,7 @@ function ExposureList({ title, items }: { title: string; items: HoldingView[] })
     <div>
       <h3 className="mb-3 text-sm font-medium">{title}</h3>
       <div className="space-y-2">
-        {items.map((item) => (
+        {items.length === 0 ? <EmptyPanelText text="暂无持仓波动数据" /> : items.map((item) => (
           <div key={item.holding.id} className="flex items-center justify-between gap-3 text-sm">
             <span className="truncate text-muted-foreground">{item.instrument.name}</span>
             <span className={item.dailyReturn >= 0 ? "number text-success" : "number text-danger"}>{formatPercent(item.dailyReturn)}</span>
@@ -496,6 +502,10 @@ function FeedColumn({ title, children }: { title: string; children: React.ReactN
       <div className="space-y-3">{children}</div>
     </div>
   );
+}
+
+function EmptyPanelText({ text }: { text: string }) {
+  return <p className="rounded-xl border border-border/20 bg-muted/15 px-3 py-2 text-sm text-muted-foreground">{text}</p>;
 }
 
 function FeedItem({
@@ -555,6 +565,10 @@ function getAchieveLabel(targetAmountCny: number, scenario: GoalScenario) {
 
 function sumBy(views: HoldingView[]) {
   return views.reduce((sum, view) => sum + view.marketValueCny, 0);
+}
+
+function safeRatio(value: number, total: number) {
+  return total === 0 ? 0 : value / total;
 }
 
 function inferIndustry(view: HoldingView) {
