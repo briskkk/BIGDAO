@@ -28,6 +28,16 @@ npm run dev
 http://localhost:3000
 ```
 
+## 开发分支规则
+
+后续新增功能、修复 bug 或调整项目配置时，不直接在 `main` 分支上修改。
+
+- 新功能使用 `feature/<short-description>` 分支。
+- Bug 修复使用 `bugfix/<short-description>` 分支。
+- 修改完成后先在本地确认效果，并至少运行相关质量检查。
+- 确认无误后再提交并推送到 GitHub 远端仓库。
+- `main` 分支仅用于合并或接收已验证完成的修改。
+
 ## Demo Mode
 
 不创建 `.env.local`，或不填写 Supabase 环境变量时，应用会自动进入 Demo Mode：
